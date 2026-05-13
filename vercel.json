@@ -1,6 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/wx_config", "destination": "/api/wx_config.js" },
-    { "source": "/api/gen_qrcode", "destination": "/api/gen_qrcode.js" }
+    { "source": "/WW_verify_LBwuGWtL8uqJLPww.txt", "destination": "/api/WW_verify_LBwuGWtL8uqJLPww" }
   ]
 }
