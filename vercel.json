@@ -1,5 +1,7 @@
 {
+  "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/wx_config", "destination": "/api/wx_config.js" },
+    { "source": "/api/gen_qrcode", "destination": "/api/gen_qrcode.js" }
   ]
 }
