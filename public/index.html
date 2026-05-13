@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>建群助手</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .card { background: white; border-radius: 12px; padding: 32px; width: 90%; max-width: 400px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center; }
+    .status { margin: 16px 0; font-size: 15px; color: #333; }
+    .qr-link { display: block; margin-top: 16px; padding: 12px; background: #07c160;
+                color: white; border-radius: 8px; text-decoration: none; font-size: 15px; }
+    .error { color: #e74c3c; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h3 id="title">正在建群...</h3>
+  <div class="status" id="status">初始化企业微信...</div>
+  <a id="qr-link" class="qr-link" style="display:none">复制入群链接</a>
+</div>
+
+<script src="https://res.wx.qq.com/wwopen/js/jweixin-1.6.0.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const partnerName = params.get('name') || '新伙伴';
+const partnerId   = params.get('id')   || '';
+
+document.getElementById('title').textContent = partnerName + ' — 建群';
+
+const pageUrl = location.href.split('#')[0];
+
+fetch('/api/wx_config?url=' + encodeURIComponent(pageUrl))
+  .then(r => r.json())
+  .then(cfg => {
+    setStatus('配置 JS-SDK...');
+    wx.config({
+      beta: true, debug: false,
+      appId: cfg.corp_id,
+      timestamp: cfg.timestamp,
+      nonceStr: cfg.nonce_str,
+      signature: cfg.signature,
+      jsApiList: ['openEnterpriseChat']
+    });
+    wx.agentConfig({
+      corpid: cfg.corp_id,
+      agentid: cfg.agent_id,
+      timestamp: cfg.timestamp,
+      nonceStr: cfg.nonce_str,
+      signature: cfg.agent_signature,
+      jsApiList: ['openEnterpriseChat'],
+      success() { createGroup(); },
+      fail(e)   { setError('agentConfig 失败: ' + JSON.stringify(e)); }
+    });
+  })
+  .catch(e => setError('获取配置失败: ' + e));
+
+function createGroup() {
+  setStatus('正在建群...');
+  wx.invoke('openEnterpriseChat', {
+    groupName: partnerName + '专属服务群',
+    userIds: 'hu',
+    externalUserIds: '',
+    chatId: ''
+  }, res => {
+    if (res.err_msg !== 'openEnterpriseChat:ok') {
+      setError('建群失败: ' + res.err_msg); return;
+    }
+    setStatus('群已建好，生成入群链接...');
+    fetch('/api/gen_qrcode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chat_id: res.chatId, partner_id: partnerId, partner_name: partnerName })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.qr_url) {
+        setStatus('✅ 完成！');
+        const link = document.getElementById('qr-link');
+        link.href = data.qr_url;
+        link.textContent = '入群链接（点击复制）';
+        link.style.display = 'block';
+        link.onclick = e => { e.preventDefault(); navigator.clipboard.writeText(data.qr_url); alert('已复制'); };
+      } else {
+        setError('生成链接失败: ' + JSON.stringify(data));
+      }
+    });
+  });
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setError(msg)  { document.getElementById('status').innerHTML = '<span class="error">' + msg + '</span>'; }
+</script>
+</body>
+</html>
